@@ -692,12 +692,16 @@
       return r.arrayBuffer();
     });
   }
+  // Soubor se hledá ve své složce, a když tam není (hosting s plochou strukturou), vedle index.html.
+  function either(fn, dir, name) {
+    return fn(dir + name).catch(function () { return fn(name); });
+  }
   function loadLibs() {
     if (!libsPromise) {
       libsPromise = Promise.all([
-        loadScript('vendor/pdf-lib.min.js').then(function () { return loadScript('vendor/fontkit.umd.min.js'); }),
-        fetchBytes('fonts/Rubik_400Regular.ttf'),
-        fetchBytes('fonts/Rubik_700Bold.ttf')
+        either(loadScript, 'vendor/', 'pdf-lib.min.js').then(function () { return either(loadScript, 'vendor/', 'fontkit.umd.min.js'); }),
+        either(fetchBytes, 'fonts/', 'Rubik_400Regular.ttf'),
+        either(fetchBytes, 'fonts/', 'Rubik_700Bold.ttf')
       ]).then(function (r) { return { regular: r[1], bold: r[2] }; });
       libsPromise.catch(function () { libsPromise = null; });
     }

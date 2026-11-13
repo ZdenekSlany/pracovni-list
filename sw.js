@@ -3,16 +3,32 @@
  * Soubory se berou z mezipaměti a na pozadí se obnovují, takže nová verze
  * (např. změna config.js) se projeví při druhém otevření stránky.
  */
-var CACHE = 'pracovni-list-v1';
-var FILES = [
-  './', 'index.html', 'styles.css', 'config.js', 'app.js', 'pdf.js',
-  'vendor/pdf-lib.min.js', 'vendor/fontkit.umd.min.js',
-  'fonts/Rubik_400Regular.ttf', 'fonts/Rubik_700Bold.ttf',
-  'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'
+var CACHE = 'pracovni-list-v2';
+var CORE = ['./', 'index.html', 'styles.css', 'config.js', 'app.js', 'pdf.js', 'manifest.webmanifest'];
+// Knihovny, písma a ikony mohou ležet ve složkách, nebo vedle index.html. Uloží se ty, které existují.
+var ASSETS = [
+  ['vendor/', 'pdf-lib.min.js'], ['vendor/', 'fontkit.umd.min.js'],
+  ['fonts/', 'Rubik_400Regular.ttf'], ['fonts/', 'Rubik_700Bold.ttf'],
+  ['icons/', 'icon.svg'], ['icons/', 'icon-180.png'], ['icons/', 'icon-192.png'], ['icons/', 'icon-512.png']
 ];
 
+function addIfExists(cache, url) {
+  return fetch(url, { cache: 'no-cache' }).then(function (res) {
+    if (!res.ok) throw new Error(url);
+    return cache.put(url, res);
+  });
+}
+
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(CACHE).then(function (cache) {
+    return cache.addAll(CORE).then(function () {
+      return Promise.all(ASSETS.map(function (a) {
+        return addIfExists(cache, a[0] + a[1])
+          .catch(function () { return addIfExists(cache, a[1]); })
+          .catch(function () { /* soubor chybí, formulář ho při potřebě zkusí načíst ze sítě */ });
+      }));
+    });
+  }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener('activate', function (e) {
