@@ -5,7 +5,7 @@
   var C = window.PL_CONFIG;
   var LS_DRAFT = 'pl.draft.v1';
   var LS_TECH = 'pl.tech.v1';
-  var APP_VERSION = '1.3'; // zobrazuje se dole ve formuláři, při úpravě kódu zvýšit
+  var APP_VERSION = '1.4'; // zobrazuje se dole ve formuláři, při úpravě kódu zvýšit
 
   // ---------------------------------------------------------------- pomocné funkce
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -732,12 +732,15 @@
   // Sady příloh, které tento telefon umí sdílet, od úplné po nejmenší. Prázdné pole = sdílení souborů není k dispozici.
   function shareableSets(pack) {
     if (!navigator.share || !navigator.canShare) return [];
-    var sets = [
-      { files: [pack.pdf, pack.csv, pack.json], label: 'PDF, CSV a JSON', note: '' },
-      { files: [pack.pdf, pack.csv, pack.jsonTxt], label: 'PDF, CSV a JSON jako .txt', note: 'Tento telefon neumí sdílet soubor .json, data se proto přiloží jako .json.txt.' },
+    // Chrome na Androidu soubor .json při sdílení odmítne (NotAllowedError), i když canShare vrátí true.
+    // Mimo iOS se proto JSON rovnou přikládá s příponou .json.txt.
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    var full = { files: [pack.pdf, pack.csv, pack.json], label: 'PDF, CSV a JSON', note: '' };
+    var txt = { files: [pack.pdf, pack.csv, pack.jsonTxt], label: 'PDF, CSV a JSON jako .txt', note: 'Data JSON se přiloží s příponou .json.txt, soubor .json telefon sdílet nedovolí.' };
+    var sets = (ios ? [full, txt] : [txt]).concat([
       { files: [pack.pdf, pack.csv], label: 'jen PDF a CSV', note: 'Přiloží se PDF a CSV. JSON lze stáhnout zvlášť klepnutím na jeho název.' },
       { files: [pack.pdf], label: 'jen PDF', note: 'Přiloží se jen PDF. CSV a JSON lze stáhnout zvlášť klepnutím na název.' }
-    ];
+    ]);
     return sets.filter(function (s) {
       try { return navigator.canShare({ files: s.files }); } catch (e) { return false; }
     });
