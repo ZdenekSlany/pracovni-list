@@ -5,6 +5,7 @@
   var C = window.PL_CONFIG;
   var LS_DRAFT = 'pl.draft.v1';
   var LS_TECH = 'pl.tech.v1';
+  var APP_VERSION = '1.2'; // zobrazuje se dole ve formuláři, při úpravě kódu zvýšit
 
   // ---------------------------------------------------------------- pomocné funkce
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -422,6 +423,7 @@
     });
     renderMaterials();
     renderPeripherals();
+    main.appendChild(h('p', { 'class': 'note', style: 'text-align:center;margin:14px 0' }, 'Pracovní list Fleetware · verze ' + APP_VERSION));
     $all('textarea', main).forEach(autosize);
     refresh();
   }
@@ -895,7 +897,7 @@
       p2.appendChild(manualBtn);
       p2.appendChild(h('p', { 'class': 'note' }, 'Přílohy se stáhnou do zařízení a otevře se nový e-mail, do kterého je připojíte ručně ze složky Stažené.'));
     }
-    p2.appendChild(h('p', { 'class': 'note diag' }, 'Diagnostika: sdílení souborů ' +
+    p2.appendChild(h('p', { 'class': 'note diag' }, 'Diagnostika: verze ' + APP_VERSION + ' · sdílení souborů ' +
       (sets.length ? 'ano (' + sets[0].label + ')' : 'ne – ' + shareDiagnosis()) + ' · ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, '')));
     root.appendChild(p2);
 
