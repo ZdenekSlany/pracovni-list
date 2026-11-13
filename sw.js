@@ -3,13 +3,13 @@
  * Stránka, skripty a konfigurace se berou ze sítě (nová verze se projeví hned),
  * bez signálu nebo při pomalé síti z mezipaměti. Knihovny, písma a ikony se berou z mezipaměti.
  */
-var CACHE = 'pracovni-list-v3';
+var CACHE = 'pracovni-list-v4';
 var CORE = ['./', 'index.html', 'styles.css', 'config.js', 'app.js', 'pdf.js', 'manifest.webmanifest'];
 // Knihovny, písma a ikony mohou ležet ve složkách, nebo vedle index.html. Uloží se ty, které existují.
 var ASSETS = [
   ['vendor/', 'pdf-lib.min.js'], ['vendor/', 'fontkit.umd.min.js'],
   ['fonts/', 'Rubik_400Regular.ttf'], ['fonts/', 'Rubik_700Bold.ttf'],
-  ['icons/', 'icon.svg'], ['icons/', 'icon-180.png'], ['icons/', 'icon-192.png'], ['icons/', 'icon-512.png']
+  ['', 'icon.svg'], ['', 'icon-180.png'], ['', 'icon-192.png'], ['', 'icon-512.png']
 ];
 var NETWORK_TIMEOUT = 3000;
 

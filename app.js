@@ -5,7 +5,7 @@
   var C = window.PL_CONFIG;
   var LS_DRAFT = 'pl.draft.v1';
   var LS_TECH = 'pl.tech.v1';
-  var APP_VERSION = '1.2'; // zobrazuje se dole ve formuláři, při úpravě kódu zvýšit
+  var APP_VERSION = '1.3'; // zobrazuje se dole ve formuláři, při úpravě kódu zvýšit
 
   // ---------------------------------------------------------------- pomocné funkce
   function $(sel, root) { return (root || document).querySelector(sel); }
