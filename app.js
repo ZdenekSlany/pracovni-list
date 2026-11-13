@@ -727,18 +727,25 @@
     });
   }
 
-  // Vybere sadu příloh, kterou tento telefon umí sdílet. null = použije se záložní postup.
-  function shareableSet(pack) {
-    if (!navigator.share || !navigator.canShare) return null;
+  // Sady příloh, které tento telefon umí sdílet, od úplné po nejmenší. Prázdné pole = sdílení souborů není k dispozici.
+  function shareableSets(pack) {
+    if (!navigator.share || !navigator.canShare) return [];
     var sets = [
-      { files: [pack.pdf, pack.csv, pack.json], note: '' },
-      { files: [pack.pdf, pack.csv, pack.jsonTxt], note: 'Tento telefon neumí sdílet soubor .json, data se proto přiloží jako .json.txt.' },
-      { files: [pack.pdf, pack.csv], note: 'Tento telefon neumí sdílet soubor JSON. Sdílí se PDF a CSV, JSON lze stáhnout zvlášť.' }
+      { files: [pack.pdf, pack.csv, pack.json], label: 'PDF, CSV a JSON', note: '' },
+      { files: [pack.pdf, pack.csv, pack.jsonTxt], label: 'PDF, CSV a JSON jako .txt', note: 'Tento telefon neumí sdílet soubor .json, data se proto přiloží jako .json.txt.' },
+      { files: [pack.pdf, pack.csv], label: 'jen PDF a CSV', note: 'Přiloží se PDF a CSV. JSON lze stáhnout zvlášť klepnutím na jeho název.' },
+      { files: [pack.pdf], label: 'jen PDF', note: 'Přiloží se jen PDF. CSV a JSON lze stáhnout zvlášť klepnutím na název.' }
     ];
-    for (var i = 0; i < sets.length; i++) {
-      try { if (navigator.canShare({ files: sets[i].files })) return sets[i]; } catch (e) { /* zkusí další */ }
-    }
-    return null;
+    return sets.filter(function (s) {
+      try { return navigator.canShare({ files: s.files }); } catch (e) { return false; }
+    });
+  }
+  // Proč sdílení souborů není k dispozici (pro technika i pro hlášení chyby).
+  function shareDiagnosis() {
+    if (!window.isSecureContext) return 'stránka neběží přes HTTPS';
+    if (!navigator.share) return 'tento prohlížeč nemá funkci sdílení';
+    if (!navigator.canShare) return 'tento prohlížeč neumí sdílet soubory';
+    return 'tento prohlížeč odmítl sdílet soubory PDF';
   }
 
   function copyText(text) {
@@ -797,7 +804,7 @@
 
   function sendSteps(pack) {
     var d = pack.d;
-    var set = shareableSet(pack);
+    var sets = shareableSets(pack), setIdx = 0, set = sets[0] || null;
     var all = [pack.pdf, pack.csv, pack.json];
     var total = all.reduce(function (s, f) { return s + f.size; }, 0);
     var after = h('div', { hidden: true });
@@ -814,15 +821,18 @@
     }
     function attempted() { after.hidden = false; after.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
 
-    function share(files, title, text, address, fallback) {
+    // Předá přílohy do nabídky sdílení telefonu. Při chybě nic nestahuje, jen zavolá onError.
+    function share(files, title, text, address, onError) {
       copyText(address);
-      navigator.share({ files: files, title: title, text: text }).then(attempted, function (e) {
+      var p;
+      try { p = navigator.share({ files: files, title: title, text: text }); } catch (e) { p = Promise.reject(e); }
+      p.then(attempted, function (e) {
         if (e && e.name === 'AbortError') { attempted(); return; } // technik sdílení zavřel, může ho zopakovat
         console.error(e);
-        toast('Sdílení se nepodařilo, použije se stažení příloh');
-        fallback();
+        onError(e);
       });
     }
+    function errText(e) { return (e && e.name ? e.name : 'chyba') + (e && e.message ? ': ' + e.message : ''); }
     function fallbackRadium() {
       downloadAll(all);
       setTimeout(function () { location.href = mailto(C.recipientEmail, pack.subject, pack.body); }, 1400);
@@ -847,16 +857,46 @@
     var p2 = h('div', { 'class': 'panel' },
       h('h3', null, h('span', { 'class': 'step-no' }, '2'), 'Přílohy a odeslání'),
       list, h('p', { 'class': 'note' }, 'Celkem ' + kb(total) + '. Klepnutím na název lze soubor stáhnout.'));
+    var manualBtn = h('button', { type: 'button', 'class': 'link', onclick: fallbackRadium }, 'Stáhnout přílohy a připojit je ručně');
     if (set) {
-      if (set.note) p2.appendChild(h('p', { 'class': 'note warn' }, set.note));
-      p2.appendChild(h('button', { type: 'button', 'class': 'btn primary block', onclick: function () {
-        share(set.files, pack.subject, pack.body, C.recipientEmail, fallbackRadium);
-      } }, 'Otevřít sdílení'));
-      p2.appendChild(h('p', { 'class': 'note' }, 'Vyberte svou poštovní aplikaci, vložte adresu do pole Komu a e-mail odešlete. Bez signálu počká ve složce K odeslání.'));
+      var setNote = h('p', { 'class': 'note warn', hidden: !set.note }, set.note);
+      var shareErr = h('p', { 'class': 'err-box', hidden: true });
+      var shareBtn = h('button', { type: 'button', 'class': 'btn primary block', onclick: function () {
+        shareErr.hidden = true;
+        share(set.files, pack.subject, pack.body, C.recipientEmail, function (e) {
+          // Sdílení selhalo: nic se nestahuje, nabídne se menší sada příloh.
+          var msg = 'Sdílení se nepodařilo (' + errText(e) + '). ';
+          if (setIdx < sets.length - 1) {
+            set = sets[++setIdx];
+            shareBtn.textContent = 'Přiložit k e-mailu ' + set.label;
+            setNote.textContent = set.note; setNote.hidden = !set.note;
+            msg += 'Zkuste to znovu s menší sadou příloh.';
+          } else {
+            msg += 'Zkuste to znovu, nebo přílohy stáhněte a připojte ručně.';
+          }
+          shareErr.textContent = msg; shareErr.hidden = false;
+        });
+      } }, 'Přiložit k e-mailu a otevřít poštu');
+      p2.appendChild(setNote);
+      p2.appendChild(shareBtn);
+      p2.appendChild(shareErr);
+      p2.appendChild(h('p', { 'class': 'note' }, 'Nic se nestahuje. Vyberte svou poštovní aplikaci, přílohy v ní už budou připojené. Vložte adresu do pole Komu a odešlete. Bez signálu e-mail počká ve složce K odeslání.'));
+      p2.appendChild(manualBtn);
     } else {
-      p2.appendChild(h('button', { type: 'button', 'class': 'btn primary block', onclick: fallbackRadium }, 'Stáhnout přílohy a otevřít e-mail'));
-      p2.appendChild(h('p', { 'class': 'note' }, 'Tento prohlížeč neumí sdílet soubory. Přílohy se stáhnou do zařízení a otevře se nový e-mail, do kterého je připojíte ručně ze složky Stažené.'));
+      p2.appendChild(h('p', { 'class': 'err-box' },
+        'Přílohy nejde připojit k e-mailu automaticky: ' + shareDiagnosis() + '. ' +
+        'Stává se to, když je formulář otevřený uvnitř jiné aplikace (Teams, Gmail, Outlook, Messenger). ' +
+        'Otevřete ho přímo v Chrome (Android) nebo v Safari (iPhone), rozpracovaný list ale zůstane jen v prohlížeči, kde jste ho vyplnili.'));
+      p2.appendChild(h('button', { type: 'button', 'class': 'btn block', onclick: function () {
+        copyText(location.href.split('#')[0]).then(function (ok) { toast(ok ? 'Odkaz je zkopírovaný, vložte ho do Chrome nebo Safari' : 'Odkaz se nepodařilo zkopírovat'); });
+      } }, 'Zkopírovat odkaz na formulář'));
+      manualBtn.className = 'btn primary block';
+      manualBtn.textContent = 'Stáhnout přílohy a otevřít e-mail';
+      p2.appendChild(manualBtn);
+      p2.appendChild(h('p', { 'class': 'note' }, 'Přílohy se stáhnou do zařízení a otevře se nový e-mail, do kterého je připojíte ručně ze složky Stažené.'));
     }
+    p2.appendChild(h('p', { 'class': 'note diag' }, 'Diagnostika: sdílení souborů ' +
+      (sets.length ? 'ano (' + sets[0].label + ')' : 'ne – ' + shareDiagnosis()) + ' · ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, '')));
     root.appendChild(p2);
 
     // 3. po sdílení
@@ -865,7 +905,10 @@
       try { canPdf = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [pack.pdf] })); } catch (e) { canPdf = false; }
       var pc = addressPanel(3, 'Kopie zákazníkovi', d.kopieEmail, 'Zákazník dostane jen PDF, bez CSV a JSON.');
       pc.appendChild(h('button', { type: 'button', 'class': 'btn block', onclick: function () {
-        if (canPdf) share([pack.pdf], pack.subject, customerBody(d), d.kopieEmail, fallbackCustomer);
+        if (canPdf) share([pack.pdf], pack.subject, customerBody(d), d.kopieEmail, function (e) {
+          toast('Sdílení se nepodařilo (' + errText(e) + '), PDF se stáhne');
+          fallbackCustomer();
+        });
         else fallbackCustomer();
       } }, 'Poslat kopii zákazníkovi'));
       after.appendChild(pc);

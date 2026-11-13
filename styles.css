@@ -196,6 +196,8 @@ input.upper { text-transform: uppercase; }
 .status.error { color: var(--red); }
 .note { color: var(--muted); font-size: 14px; }
 .note.warn { color: #8a5a00; }
+.note.diag { font-size: 12px; margin-top: 12px; overflow-wrap: anywhere; }
+.err-box { background: var(--red-soft); color: var(--red); border-radius: 8px; padding: 10px; font-weight: 600; font-size: 15px; margin: 10px 0 0; overflow-wrap: anywhere; }
 
 /* ---------- Dialog ---------- */
 .modal-back { position: fixed; inset: 0; z-index: 60; background: rgba(20,24,32,.55); display: flex; align-items: flex-end; justify-content: center; padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
